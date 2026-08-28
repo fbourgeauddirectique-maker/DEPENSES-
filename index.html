@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Mes Sous · Suivi de dépenses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FDF6EF;
+    --cream-2:#FBEFE2;
+    --lavender:#C9B6E8;
+    --lavender-deep:#9B7FD1;
+    --mint:#A9E4D0;
+    --peach:#FFD1A9;
+    --coral:#FF8FA3;
+    --plum:#4A3B52;
+    --plum-soft:#7A6B85;
+    --white:#FFFFFF;
+    --shadow: 0 8px 24px rgba(155, 127, 209, 0.16);
+    --radius-lg: 26px;
+    --radius-md: 18px;
+    --radius-sm: 12px;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--cream);
+    color: var(--plum);
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height:100vh;
+    overscroll-behavior-y: contain;
+  }
+
+  .blob{
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(2px);
+    opacity:.55;
+    z-index:0;
+    pointer-events:none;
+  }
+  .blob-1{ width:220px; height:220px; background: var(--peach); top:-90px; right:-70px; }
+  .blob-2{ width:180px; height:180px; background: var(--mint); bottom:60px; left:-80px; opacity:.45; }
+
+  .app{
+    position:relative;
+    z-index:1;
+    max-width:520px;
+    margin:0 auto;
+    padding: max(20px, env(safe-area-inset-top)) 18px calc(100px + env(safe-area-inset-bottom));
+    min-height:100vh;
+  }
+
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  header h1{
+    font-family:'Fredoka', sans-serif;
+    font-weight:600;
+    font-size:26px;
+    margin:0;
+    color: var(--plum);
+    letter-spacing:-0.3px;
+  }
+  header h1 span{ color: var(--lavender-deep); }
+  .icon-btn{
+    width:42px; height:42px;
+    border-radius:14px;
+    border:none;
+    background: var(--white);
+    box-shadow: var(--shadow);
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px;
+    cursor:pointer;
+    color: var(--plum-soft);
+    transition: transform .15s ease;
+  }
+  .icon-btn:active{ transform: scale(0.92); }
+
+  .total-card{
+    background: linear-gradient(135deg, var(--lavender) 0%, var(--lavender-deep) 100%);
+    border-radius: var(--radius-lg);
+    padding:22px 24px;
+    color: white;
+    box-shadow: 0 12px 28px rgba(155,127,209,.35);
+    margin-bottom:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .total-card::after{
+    content:"";
+    position:absolute;
+    width:140px; height:140px;
+    background: rgba(255,255,255,.14);
+    border-radius:50%;
+    top:-60px; right:-40px;
+  }
+  .total-card .label{
+    font-size:13px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.8px;
+    opacity:.85;
+  }
+  .total-card .amount{
+    font-family:'Fredoka', sans-serif;
+    font-size:38px;
+    font-weight:600;
+    margin-top:4px;
+  }
+  .total-card .sub{
+    font-size:13px;
+    opacity:.85;
+    margin-top:6px;
+  }
+
+  .card{
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding:20px;
+    margin-bottom:18px;
+  }
+
+  .card h2{
+    font-family:'Fredoka', sans-serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 14px;
+    color: var(--plum);
+  }
+
+  .field{
+    margin-bottom:14px;
+  }
+  .field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:800;
+    color: var(--plum-soft);
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    margin-bottom:6px;
+  }
+  .field input[type="date"],
+  .field input[type="number"],
+  .field input[type="text"],
+  .field select{
+    width:100%;
+    padding:13px 14px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--cream-2);
+    background: var(--cream);
+    font-family:'Nunito', sans-serif;
+    font-size:16px;
+    font-weight:700;
+    color: var(--plum);
+    outline:none;
+    transition: border-color .15s ease;
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  .field input:focus,
+  .field select:focus{
+    border-color: var(--lavender-deep);
+  }
+  select{
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'><path d='M1 1L7 7L13 1' stroke='%237A6B85' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;
+    background-position: right 14px center;
+    padding-right:36px;
+  }
+  .amount-field{ position:relative; }
+  .amount-field input{ padding-left:32px; }
+  .amount-field::before{
+    content:"€";
+    position:absolute;
+    left:14px; top:50%;
+    transform:translateY(calc(50% + 15px));
+    font-weight:800;
+    color: var(--plum-soft);
+    pointer-events:none;
+  }
+
+  .new-cat-row{
+    display:flex;
+    gap:8px;
+    margin-top:8px;
+  }
+  .new-cat-row input{ flex:1; }
+  .new-cat-row button{
+    border:none;
+    background: var(--mint);
+    color: var(--plum);
+    font-weight:800;
+    border-radius: var(--radius-sm);
+    padding:0 16px;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  .submit-btn{
+    width:100%;
+    border:none;
+    padding:15px;
+    border-radius: var(--radius-md);
+    background: var(--coral);
+    color:white;
+    font-family:'Fredoka', sans-serif;
+    font-weight:600;
+    font-size:16px;
+    cursor:pointer;
+    box-shadow: 0 8px 18px rgba(255,143,163,.45);
+    transition: transform .15s ease;
+  }
+  .submit-btn:active{ transform: scale(0.98); }
+
+  .section-title{
+    font-family:'Fredoka', sans-serif;
+    font-size:15px;
+    font-weight:600;
+    color: var(--plum-soft);
+    margin: 22px 4px 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+
+  .day-group{ margin-bottom:14px; }
+  .day-header{
+    font-size:12.5px;
+    font-weight:800;
+    color: var(--plum-soft);
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    margin:0 4px 8px;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .expense-item{
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    box-shadow: 0 4px 14px rgba(155,127,209,.10);
+    margin-bottom:9px;
+  }
+  .cat-dot{
+    width:40px; height:40px;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+    flex-shrink:0;
+  }
+  .expense-info{ flex:1; min-width:0; }
+  .expense-info .cat-name{
+    font-weight:800;
+    font-size:14.5px;
+    color: var(--plum);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .expense-info .expense-date{
+    font-size:12px;
+    color: var(--plum-soft);
+    margin-top:1px;
+  }
+  .expense-amount{
+    font-family:'Fredoka', sans-serif;
+    font-weight:600;
+    font-size:16.5px;
+    color: var(--plum);
+    white-space:nowrap;
+  }
+  .delete-btn{
+    border:none;
+    background:transparent;
+    color: var(--plum-soft);
+    opacity:.5;
+    font-size:16px;
+    cursor:pointer;
+    padding:4px 2px;
+  }
+  .delete-btn:active{ opacity:1; }
+
+  .empty-state{
+    text-align:center;
+    padding:40px 20px;
+    color: var(--plum-soft);
+  }
+  .empty-state .emoji{ font-size:38px; margin-bottom:10px; }
+  .empty-state p{ margin:4px 0; font-weight:700; font-size:14.5px; }
+  .empty-state span{ font-size:13px; opacity:.8; }
+
+  .data-actions{
+    display:flex;
+    gap:10px;
+  }
+  .data-actions button{
+    flex:1;
+    border:none;
+    padding:13px;
+    border-radius: var(--radius-md);
+    font-family:'Nunito',sans-serif;
+    font-weight:800;
+    font-size:14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+  }
+  .btn-export{ background: var(--mint); color: var(--plum); }
+  .btn-import{ background: var(--peach); color: var(--plum); }
+
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(20px);
+    background: var(--plum);
+    color:white;
+    padding:12px 20px;
+    border-radius: 14px;
+    font-size:14px;
+    font-weight:700;
+    box-shadow: 0 10px 26px rgba(0,0,0,.25);
+    opacity:0;
+    transition: all .25s ease;
+    z-index: 50;
+    pointer-events:none;
+    max-width: 85%;
+    text-align:center;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  .modal-overlay{
+    position:fixed; inset:0;
+    background: rgba(74,59,82,.35);
+    display:flex; align-items:flex-end;
+    justify-content:center;
+    z-index: 60;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .2s ease;
+  }
+  .modal-overlay.show{ opacity:1; pointer-events:auto; }
+  .modal-sheet{
+    background: var(--cream);
+    width:100%;
+    max-width:520px;
+    border-radius: 26px 26px 0 0;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+    transform: translateY(30px);
+    transition: transform .25s ease;
+    max-height:75vh;
+    overflow-y:auto;
+  }
+  .modal-overlay.show .modal-sheet{ transform: translateY(0); }
+  .modal-sheet h3{
+    font-family:'Fredoka', sans-serif;
+    font-size:18px;
+    margin:0 0 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .modal-sheet h3 button{
+    border:none; background:var(--white); width:32px; height:32px;
+    border-radius:10px; font-size:15px; cursor:pointer; color:var(--plum-soft);
+  }
+  .cat-manage-row{
+    display:flex; align-items:center; gap:10px;
+    background:var(--white); border-radius:14px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .cat-manage-row .cat-dot{ width:34px; height:34px; font-size:15px; border-radius:10px; }
+  .cat-manage-row .cat-manage-name{ flex:1; font-weight:800; font-size:14.5px; }
+  .cat-manage-row button{
+    border:none; background:transparent; color:var(--coral);
+    font-size:16px; cursor:pointer; padding:4px;
+    opacity:.8;
+  }
+  .cat-manage-row.is-default button{ opacity:.2; cursor:not-allowed; }
+
+  ::selection{ background: var(--lavender); color:white; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="app">
+
+  <header>
+    <h1>Mes <span>Sous</span> 🌸</h1>
+    <button class="icon-btn" id="categoryManageBtn" title="Gérer les catégories">⚙️</button>
+  </header>
+
+  <div class="total-card">
+    <div class="label">Total ce mois-ci</div>
+    <div class="amount" id="monthTotal">0,00 €</div>
+    <div class="sub" id="monthSub">Aucune dépense enregistrée</div>
+  </div>
+
+  <div class="card">
+    <h2>Nouvelle dépense</h2>
+    <form id="expenseForm">
+      <div class="field">
+        <label for="dateInput">Date</label>
+        <input type="date" id="dateInput" required>
+      </div>
+
+      <div class="field">
+        <label for="categorySelect">Catégorie</label>
+        <select id="categorySelect" required></select>
+        <div class="new-cat-row" id="newCatRow" style="display:none;">
+          <input type="text" id="newCatInput" placeholder="Nom de la catégorie">
+          <button type="button" id="addCatBtn">Ajouter</button>
+        </div>
+      </div>
+
+      <div class="field amount-field">
+        <label for="amountInput">Montant</label>
+        <input type="number" id="amountInput" inputmode="decimal" step="0.01" min="0" placeholder="0,00" required>
+      </div>
+
+      <button type="submit" class="submit-btn">Ajouter la dépense</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Import / Export</h2>
+    <div class="data-actions">
+      <button type="button" class="btn-export" id="exportBtn">⬇️ Exporter JSON</button>
+      <button type="button" class="btn-import" id="importBtn">⬆️ Importer JSON</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+  </div>
+
+  <div class="section-title">
+    <span>Historique</span>
+  </div>
+  <div id="expenseList"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
