@@ -80,6 +80,36 @@ function getCategory(id) {
   return categories.find(c => c.id === id) || { name: id, emoji: "✨", color: "#E4C1F9" };
 }
 
+/* Boîte de confirmation maison : window.confirm() ne fonctionne pas sur iOS
+   quand l'appli est ajoutée à l'écran d'accueil (mode standalone). */
+function showConfirm(message, { okLabel = "Confirmer", cancelLabel = "Annuler", danger = true } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal-sheet">
+        <h3>Confirmation</h3>
+        <p style="font-size:14.5px; font-weight:700; color:var(--plum-soft); line-height:1.5; margin:0 0 18px;">${escapeHTML(message)}</p>
+        <div class="data-actions">
+          <button type="button" id="confirmCancelBtn" style="background:var(--cream-2); color:var(--plum);">${escapeHTML(cancelLabel)}</button>
+          <button type="button" id="confirmOkBtn" style="background:${danger ? "#FBDDE1" : "var(--mint)"}; color:${danger ? "var(--coral)" : "var(--plum)"};">${escapeHTML(okLabel)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    function close(result) {
+      overlay.classList.remove("show");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    }
+
+    overlay.querySelector("#confirmOkBtn").addEventListener("click", () => close(true));
+    overlay.querySelector("#confirmCancelBtn").addEventListener("click", () => close(false));
+    overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
+  });
+}
+
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.textContent = message;
@@ -137,8 +167,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("resetBtn").addEventListener("click", resetAll);
 });
 
-function resetAll() {
-  const sure = confirm("Tout réinitialiser ?\nToutes les dépenses et les catégories personnalisées seront définitivement supprimées.");
+async function resetAll() {
+  const sure = await showConfirm(
+    "Toutes les dépenses et les catégories personnalisées seront définitivement supprimées.",
+    { okLabel: "Tout supprimer" }
+  );
   if (!sure) return;
 
   expenses = [];
@@ -337,9 +370,15 @@ function openCategoryManager() {
         <button ${cat.default ? "disabled" : ""} title="Supprimer">🗑️</button>
       `;
       if (!cat.default) {
-        row.querySelector("button").addEventListener("click", () => {
+        row.querySelector("button").addEventListener("click", async () => {
           const inUse = expenses.some(e => e.categoryId === cat.id);
-          if (inUse && !confirm(`"${cat.name}" est utilisée par des dépenses existantes. Elle restera affichée sur ces dépenses mais ne sera plus proposée. Continuer ?`)) return;
+          if (inUse) {
+            const ok = await showConfirm(
+              `"${cat.name}" est utilisée par des dépenses existantes. Elle restera affichée sur ces dépenses mais ne sera plus proposée. Continuer ?`,
+              { okLabel: "Supprimer" }
+            );
+            if (!ok) return;
+          }
           categories = categories.filter(c => c.id !== cat.id);
           saveCategories();
           renderCategorySelect();
@@ -400,13 +439,14 @@ function importJSON(e) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.expenses)) throw new Error("Format invalide");
 
-      const replace = confirm(
-        "Importer ce fichier :\nOK = remplacer toutes les données actuelles\nAnnuler = fusionner avec les données existantes"
+      const replace = await showConfirm(
+        "Remplacer toutes les données actuelles par ce fichier ? Choisis \"Fusionner\" pour garder tes dépenses existantes et ajouter celles du fichier.",
+        { okLabel: "Remplacer tout", cancelLabel: "Fusionner", danger: false }
       );
 
       if (Array.isArray(data.categories)) {
