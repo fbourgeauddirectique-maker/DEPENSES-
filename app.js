@@ -133,7 +133,24 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("importFile").addEventListener("change", importJSON);
 
   document.getElementById("categoryManageBtn").addEventListener("click", openCategoryManager);
+
+  document.getElementById("resetBtn").addEventListener("click", resetAll);
 });
+
+function resetAll() {
+  const sure = confirm("Tout réinitialiser ?\nToutes les dépenses et les catégories personnalisées seront définitivement supprimées.");
+  if (!sure) return;
+
+  expenses = [];
+  categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  saveExpenses();
+  saveCategories();
+
+  renderCategorySelect();
+  renderExpenses();
+  updateMonthTotal();
+  showToast("Application réinitialisée");
+}
 
 function onCategoryChange(e) {
   const newCatRow = document.getElementById("newCatRow");

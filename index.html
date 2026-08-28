@@ -326,6 +326,18 @@
   }
   .btn-export{ background: var(--mint); color: var(--plum); }
   .btn-import{ background: var(--peach); color: var(--plum); }
+  .btn-reset{
+    width:100%;
+    border:none;
+    padding:13px;
+    border-radius: var(--radius-md);
+    background: #FBDDE1;
+    color: var(--coral);
+    font-family:'Nunito',sans-serif;
+    font-weight:800;
+    font-size:14px;
+    cursor:pointer;
+  }
 
   .toast{
     position:fixed;
@@ -458,6 +470,11 @@
       <button type="button" class="btn-import" id="importBtn">⬆️ Importer JSON</button>
     </div>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
+  </div>
+
+  <div class="card">
+    <h2>Réinitialiser</h2>
+    <button type="button" class="btn-reset" id="resetBtn">🗑️ Tout réinitialiser</button>
   </div>
 
   <div class="section-title">
