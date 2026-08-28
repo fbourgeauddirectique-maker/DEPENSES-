@@ -2,6 +2,7 @@
 
 const STORAGE_KEY = "mesSous.expenses.v1";
 const CATEGORY_KEY = "mesSous.categories.v1";
+const MERCHANT_KEY = "mesSous.merchants.v1";
 
 const DEFAULT_CATEGORIES = [
   { id: "alimentation", name: "Alimentation", emoji: "🍎", color: "#A9E4D0", default: true },
@@ -16,6 +17,7 @@ const CAT_COLORS = ["#A9E4D0", "#C9B6E8", "#FFD1A9", "#FF8FA3", "#9FD3F0", "#E4C
 
 let expenses = [];
 let categories = [];
+let merchants = [];
 
 /* ---------- persistence ---------- */
 
@@ -43,6 +45,39 @@ function loadCategories() {
 
 function saveCategories() {
   localStorage.setItem(CATEGORY_KEY, JSON.stringify(categories));
+}
+
+function loadMerchants() {
+  try {
+    const raw = localStorage.getItem(MERCHANT_KEY);
+    merchants = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    merchants = [];
+  }
+}
+
+function saveMerchants() {
+  localStorage.setItem(MERCHANT_KEY, JSON.stringify(merchants));
+}
+
+function rememberMerchant(name) {
+  const clean = name.trim();
+  if (!clean) return;
+  merchants = merchants.filter(m => m.toLowerCase() !== clean.toLowerCase());
+  merchants.unshift(clean);
+  merchants = merchants.slice(0, 40);
+  saveMerchants();
+  renderMerchantList();
+}
+
+function renderMerchantList() {
+  const datalist = document.getElementById("merchantList");
+  datalist.innerHTML = "";
+  merchants.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    datalist.appendChild(opt);
+  });
 }
 
 /* ---------- helpers ---------- */
@@ -142,11 +177,13 @@ function renderCategorySelect(selectedId) {
 document.addEventListener("DOMContentLoaded", () => {
   loadExpenses();
   loadCategories();
+  loadMerchants();
 
   const dateInput = document.getElementById("dateInput");
   dateInput.value = new Date().toISOString().slice(0, 10);
 
   renderCategorySelect();
+  renderMerchantList();
   renderExpenses();
   updateMonthTotal();
 
@@ -176,10 +213,13 @@ async function resetAll() {
 
   expenses = [];
   categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  merchants = [];
   saveExpenses();
   saveCategories();
+  saveMerchants();
 
   renderCategorySelect();
+  renderMerchantList();
   renderExpenses();
   updateMonthTotal();
   showToast("Application réinitialisée");
@@ -226,8 +266,10 @@ function onSubmitExpense(e) {
 
   const date = document.getElementById("dateInput").value;
   const catSelect = document.getElementById("categorySelect");
+  const merchantInput = document.getElementById("merchantInput");
   const amountInput = document.getElementById("amountInput");
   const amount = parseFloat(amountInput.value);
+  const merchant = merchantInput.value.trim();
 
   if (catSelect.value === "__add_new__") {
     showToast("Choisis un nom pour ta nouvelle catégorie");
@@ -242,12 +284,15 @@ function onSubmitExpense(e) {
     id: uid(),
     date,
     categoryId: catSelect.value,
+    merchant,
     amount: Math.round(amount * 100) / 100,
     createdAt: new Date().toISOString(),
   });
 
   saveExpenses();
+  if (merchant) rememberMerchant(merchant);
   amountInput.value = "";
+  merchantInput.value = "";
   renderExpenses();
   updateMonthTotal();
   showToast("Dépense ajoutée 🌸");
@@ -295,7 +340,7 @@ function renderExpenses() {
       item.innerHTML = `
         <div class="cat-dot" style="background:${cat.color}33;">${cat.emoji}</div>
         <div class="expense-info">
-          <div class="cat-name">${escapeHTML(cat.name)}</div>
+          <div class="cat-name">${escapeHTML(cat.name)}${exp.merchant ? ` · ${escapeHTML(exp.merchant)}` : ""}</div>
           <div class="expense-date">${escapeHTML(exp.date)}</div>
         </div>
         <div class="expense-amount">${formatEUR(exp.amount)}</div>
@@ -419,6 +464,7 @@ function exportJSON() {
     app: "mes-sous",
     exportedAt: new Date().toISOString(),
     categories,
+    merchants,
     expenses,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -458,6 +504,18 @@ function importJSON(e) {
           });
         }
         saveCategories();
+      }
+
+      if (Array.isArray(data.merchants)) {
+        if (replace) {
+          merchants = data.merchants;
+        } else {
+          data.merchants.forEach(m => {
+            if (!merchants.find(existing => existing.toLowerCase() === m.toLowerCase())) merchants.push(m);
+          });
+        }
+        saveMerchants();
+        renderMerchantList();
       }
 
       if (replace) {
