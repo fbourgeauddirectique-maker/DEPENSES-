@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Mes Sous · Suivi de dépenses</title>
+<title>Mes Sous · Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -16,8 +16,10 @@
     --lavender:#C9B6E8;
     --lavender-deep:#9B7FD1;
     --mint:#A9E4D0;
+    --mint-deep:#5EBE9A;
     --peach:#FFD1A9;
     --coral:#FF8FA3;
+    --coral-deep:#E85D74;
     --plum:#4A3B52;
     --plum-soft:#7A6B85;
     --white:#FFFFFF;
@@ -38,90 +40,62 @@
     overscroll-behavior-y: contain;
   }
 
-  .blob{
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(2px);
-    opacity:.55;
-    z-index:0;
-    pointer-events:none;
-  }
+  .blob{ position: fixed; border-radius: 50%; filter: blur(2px); opacity:.5; z-index:0; pointer-events:none; }
   .blob-1{ width:220px; height:220px; background: var(--peach); top:-90px; right:-70px; }
-  .blob-2{ width:180px; height:180px; background: var(--mint); bottom:60px; left:-80px; opacity:.45; }
+  .blob-2{ width:180px; height:180px; background: var(--mint); bottom:60px; left:-80px; opacity:.4; }
 
   .app{
     position:relative;
     z-index:1;
-    max-width:520px;
+    max-width:560px;
     margin:0 auto;
-    padding: max(20px, env(safe-area-inset-top)) 18px calc(100px + env(safe-area-inset-bottom));
+    padding: max(18px, env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
     min-height:100vh;
   }
 
   header{
     display:flex;
-    align-items:flex-end;
+    align-items:center;
     justify-content:space-between;
-    margin-bottom:18px;
+    margin-bottom:14px;
   }
   header h1{
     font-family:'Fredoka', sans-serif;
     font-weight:600;
-    font-size:26px;
+    font-size:24px;
     margin:0;
     color: var(--plum);
     letter-spacing:-0.3px;
   }
   header h1 span{ color: var(--lavender-deep); }
-  .icon-btn{
-    width:42px; height:42px;
-    border-radius:14px;
-    border:none;
-    background: var(--white);
-    box-shadow: var(--shadow);
-    display:flex; align-items:center; justify-content:center;
-    font-size:19px;
-    cursor:pointer;
-    color: var(--plum-soft);
-    transition: transform .15s ease;
-  }
-  .icon-btn:active{ transform: scale(0.92); }
 
-  .total-card{
-    background: linear-gradient(135deg, var(--lavender) 0%, var(--lavender-deep) 100%);
-    border-radius: var(--radius-lg);
-    padding:22px 24px;
-    color: white;
-    box-shadow: 0 12px 28px rgba(155,127,209,.35);
-    margin-bottom:20px;
-    position:relative;
-    overflow:hidden;
+  /* --- month switcher --- */
+  .month-switcher{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background: var(--white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    padding:6px 6px;
+    margin-bottom:16px;
   }
-  .total-card::after{
-    content:"";
-    position:absolute;
-    width:140px; height:140px;
-    background: rgba(255,255,255,.14);
-    border-radius:50%;
-    top:-60px; right:-40px;
+  .month-switcher button{
+    width:40px; height:40px;
+    border:none;
+    background: var(--cream-2);
+    border-radius:12px;
+    font-size:17px;
+    color: var(--lavender-deep);
+    cursor:pointer;
+    font-weight:800;
   }
-  .total-card .label{
-    font-size:13px;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.8px;
-    opacity:.85;
-  }
-  .total-card .amount{
+  .month-switcher .month-label{
     font-family:'Fredoka', sans-serif;
-    font-size:38px;
     font-weight:600;
-    margin-top:4px;
-  }
-  .total-card .sub{
-    font-size:13px;
-    opacity:.85;
-    margin-top:6px;
+    font-size:16.5px;
+    text-transform:capitalize;
+    color: var(--plum);
   }
 
   .card{
@@ -129,294 +103,267 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
     padding:20px;
-    margin-bottom:18px;
+    margin-bottom:16px;
   }
-
   .card h2{
     font-family:'Fredoka', sans-serif;
-    font-size:17px;
+    font-size:16.5px;
     font-weight:600;
     margin:0 0 14px;
     color: var(--plum);
+    display:flex; align-items:center; justify-content:space-between;
   }
+  .card h2 .hint{ font-size:12px; font-weight:700; color: var(--plum-soft); }
 
-  .field{
-    margin-bottom:14px;
+  /* --- summary cards --- */
+  .summary-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    margin-bottom:16px;
   }
+  .summary-card{
+    border-radius: var(--radius-md);
+    padding:16px;
+    color:white;
+    position:relative;
+    overflow:hidden;
+  }
+  .summary-card.income{ background: linear-gradient(135deg, var(--mint) 0%, var(--mint-deep) 100%); }
+  .summary-card.expense{ background: linear-gradient(135deg, var(--coral) 0%, var(--coral-deep) 100%); }
+  .summary-card.balance{
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--lavender) 0%, var(--lavender-deep) 100%);
+  }
+  .summary-card .label{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; opacity:.9; }
+  .summary-card .amount{ font-family:'Fredoka', sans-serif; font-size:23px; font-weight:600; margin-top:4px; }
+
+  /* --- donut chart --- */
+  .chart-wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:16px;
+  }
+  .donut{
+    width:180px; height:180px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    flex-shrink:0;
+  }
+  .donut .hole{
+    width:112px; height:112px;
+    background: var(--white);
+    border-radius:50%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+  }
+  .donut .hole .total{ font-family:'Fredoka', sans-serif; font-weight:600; font-size:16px; color:var(--plum); }
+  .donut .hole .sub{ font-size:10.5px; font-weight:800; color:var(--plum-soft); text-transform:uppercase; margin-top:2px; }
+
+  .legend{ display:flex; flex-direction:column; gap:9px; }
+  .legend-row{ display:flex; align-items:center; gap:10px; }
+  .legend-dot{ width:11px; height:11px; border-radius:4px; flex-shrink:0; }
+  .legend-name{ flex:1; font-weight:800; font-size:13.5px; color:var(--plum); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .legend-pct{ font-weight:800; font-size:13px; color:var(--plum-soft); width:44px; text-align:right; }
+  .legend-amt{ font-family:'Fredoka', sans-serif; font-weight:600; font-size:13.5px; color:var(--plum); width:70px; text-align:right; }
+
+  .empty-state{ text-align:center; padding:30px 20px; color: var(--plum-soft); }
+  .empty-state .emoji{ font-size:34px; margin-bottom:8px; }
+  .empty-state p{ margin:4px 0; font-weight:700; font-size:14px; }
+  .empty-state span{ font-size:12.5px; opacity:.8; }
+
+  /* --- form fields (shared) --- */
+  .field{ margin-bottom:14px; }
   .field label{
-    display:block;
-    font-size:12.5px;
-    font-weight:800;
-    color: var(--plum-soft);
-    text-transform:uppercase;
-    letter-spacing:.5px;
-    margin-bottom:6px;
+    display:block; font-size:12.5px; font-weight:800; color: var(--plum-soft);
+    text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;
   }
-  .field input[type="date"],
-  .field input[type="number"],
-  .field input[type="text"],
-  .field select{
-    width:100%;
-    padding:13px 14px;
-    border-radius: var(--radius-sm);
-    border: 2px solid var(--cream-2);
-    background: var(--cream);
-    font-family:'Nunito', sans-serif;
-    font-size:16px;
-    font-weight:700;
-    color: var(--plum);
-    outline:none;
-    transition: border-color .15s ease;
-    appearance:none;
-    -webkit-appearance:none;
+  .field input[type="date"], .field input[type="number"], .field input[type="text"], .field select{
+    width:100%; padding:13px 14px; border-radius: var(--radius-sm);
+    border: 2px solid var(--cream-2); background: var(--cream);
+    font-family:'Nunito', sans-serif; font-size:16px; font-weight:700; color: var(--plum);
+    outline:none; transition: border-color .15s ease; appearance:none; -webkit-appearance:none;
   }
-  .field input:focus,
-  .field select:focus{
-    border-color: var(--lavender-deep);
-  }
+  .field input:focus, .field select:focus{ border-color: var(--lavender-deep); }
   select{
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'><path d='M1 1L7 7L13 1' stroke='%237A6B85' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-    background-repeat:no-repeat;
-    background-position: right 14px center;
-    padding-right:36px;
+    background-repeat:no-repeat; background-position: right 14px center; padding-right:36px;
   }
   .amount-field{ position:relative; }
   .amount-field input{ padding-left:32px; }
   .amount-field::before{
-    content:"€";
-    position:absolute;
-    left:14px; top:50%;
-    transform:translateY(calc(50% + 15px));
-    font-weight:800;
-    color: var(--plum-soft);
-    pointer-events:none;
+    content:"€"; position:absolute; left:14px; top:50%; transform:translateY(calc(50% + 15px));
+    font-weight:800; color: var(--plum-soft); pointer-events:none;
   }
-
-  .new-cat-row{
-    display:flex;
-    gap:8px;
-    margin-top:8px;
-  }
+  .new-cat-row{ display:flex; gap:8px; margin-top:8px; }
   .new-cat-row input{ flex:1; }
   .new-cat-row button{
-    border:none;
-    background: var(--mint);
-    color: var(--plum);
-    font-weight:800;
-    border-radius: var(--radius-sm);
-    padding:0 16px;
-    font-size:14px;
-    cursor:pointer;
+    border:none; background: var(--mint); color: var(--plum); font-weight:800;
+    border-radius: var(--radius-sm); padding:0 16px; font-size:14px; cursor:pointer;
   }
+
+  /* --- segmented control (dépense / recette) --- */
+  .segmented{
+    display:flex; background: var(--cream-2); border-radius: 14px; padding:4px; margin-bottom:16px;
+  }
+  .segmented button{
+    flex:1; border:none; background:transparent; padding:11px 0; border-radius:11px;
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:14px; color: var(--plum-soft); cursor:pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .segmented button.active.expense-mode{ background: var(--coral); color:white; }
+  .segmented button.active.income-mode{ background: var(--mint-deep); color:white; }
 
   .submit-btn{
-    width:100%;
-    border:none;
-    padding:15px;
-    border-radius: var(--radius-md);
-    background: var(--coral);
-    color:white;
-    font-family:'Fredoka', sans-serif;
-    font-weight:600;
-    font-size:16px;
-    cursor:pointer;
-    box-shadow: 0 8px 18px rgba(255,143,163,.45);
-    transition: transform .15s ease;
+    width:100%; border:none; padding:15px; border-radius: var(--radius-md);
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:16px; color:white; cursor:pointer;
+    transition: transform .15s ease, background .2s ease;
   }
   .submit-btn:active{ transform: scale(0.98); }
+  .submit-btn.expense-mode{ background: var(--coral); box-shadow: 0 8px 18px rgba(255,143,163,.45); }
+  .submit-btn.income-mode{ background: var(--mint-deep); box-shadow: 0 8px 18px rgba(94,190,154,.4); }
 
-  .section-title{
-    font-family:'Fredoka', sans-serif;
-    font-size:15px;
-    font-weight:600;
-    color: var(--plum-soft);
-    margin: 22px 4px 10px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-  }
-
+  /* --- transaction / recurring list rows --- */
   .day-group{ margin-bottom:14px; }
   .day-header{
-    font-size:12.5px;
-    font-weight:800;
-    color: var(--plum-soft);
-    text-transform:uppercase;
-    letter-spacing:.5px;
-    margin:0 4px 8px;
-    display:flex;
-    justify-content:space-between;
+    font-size:12.5px; font-weight:800; color: var(--plum-soft); text-transform:uppercase;
+    letter-spacing:.5px; margin:0 4px 8px; display:flex; justify-content:space-between;
   }
-
-  .expense-item{
-    background: var(--white);
-    border-radius: var(--radius-md);
-    padding:14px 16px;
-    display:flex;
-    align-items:center;
-    gap:12px;
-    box-shadow: 0 4px 14px rgba(155,127,209,.10);
-    margin-bottom:9px;
+  .txn-item{
+    background: var(--white); border-radius: var(--radius-md); padding:13px 14px;
+    display:flex; align-items:center; gap:11px; box-shadow: 0 4px 14px rgba(155,127,209,.10);
+    margin-bottom:9px; cursor:pointer;
   }
+  .txn-item:active{ transform: scale(0.99); }
   .cat-dot{
-    width:40px; height:40px;
-    border-radius:12px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:18px;
-    flex-shrink:0;
+    width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; flex-shrink:0;
   }
-  .expense-info{ flex:1; min-width:0; }
-  .expense-info .cat-name{
-    font-weight:800;
-    font-size:14.5px;
-    color: var(--plum);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+  .txn-info{ flex:1; min-width:0; }
+  .txn-info .cat-name{
+    font-weight:800; font-size:14px; color: var(--plum); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .expense-info .expense-date{
-    font-size:12px;
-    color: var(--plum-soft);
-    margin-top:1px;
-  }
-  .expense-amount{
-    font-family:'Fredoka', sans-serif;
-    font-weight:600;
-    font-size:16.5px;
-    color: var(--plum);
-    white-space:nowrap;
-  }
-  .delete-btn{
-    border:none;
-    background:transparent;
-    color: var(--plum-soft);
-    opacity:.5;
-    font-size:16px;
-    cursor:pointer;
-    padding:4px 2px;
-  }
-  .delete-btn:active{ opacity:1; }
+  .txn-info .txn-sub{ font-size:11.5px; color: var(--plum-soft); margin-top:1px; }
+  .txn-amount{ font-family:'Fredoka', sans-serif; font-weight:600; font-size:15.5px; white-space:nowrap; }
+  .txn-amount.expense{ color: var(--coral-deep); }
+  .txn-amount.income{ color: var(--mint-deep); }
 
-  .empty-state{
-    text-align:center;
-    padding:40px 20px;
-    color: var(--plum-soft);
+  .recur-item{
+    background: var(--white); border-radius: var(--radius-md); padding:13px 14px;
+    display:flex; align-items:center; gap:11px; box-shadow: 0 4px 14px rgba(155,127,209,.10); margin-bottom:9px;
   }
-  .empty-state .emoji{ font-size:38px; margin-bottom:10px; }
-  .empty-state p{ margin:4px 0; font-weight:700; font-size:14.5px; }
-  .empty-state span{ font-size:13px; opacity:.8; }
+  .recur-item .recur-info{ flex:1; min-width:0; }
+  .recur-item .recur-name{ font-weight:800; font-size:14px; color:var(--plum); }
+  .recur-item .recur-sub{ font-size:11.5px; color:var(--plum-soft); margin-top:1px; }
+  .recur-item .recur-amount{ font-family:'Fredoka', sans-serif; font-weight:600; font-size:14.5px; color:var(--plum); }
+  .recur-item.inactive{ opacity:.45; }
+  .recur-toggle{
+    width:38px; height:22px; border-radius:11px; background:var(--cream-2); position:relative; border:none; cursor:pointer; flex-shrink:0;
+  }
+  .recur-toggle.on{ background: var(--mint-deep); }
+  .recur-toggle::after{
+    content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:white; transition: left .15s ease;
+  }
+  .recur-toggle.on::after{ left:18px; }
 
-  .data-actions{
-    display:flex;
-    gap:10px;
-  }
+  .data-actions{ display:flex; gap:10px; }
   .data-actions button{
-    flex:1;
-    border:none;
-    padding:13px;
-    border-radius: var(--radius-md);
-    font-family:'Nunito',sans-serif;
-    font-weight:800;
-    font-size:14px;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
+    flex:1; border:none; padding:13px; border-radius: var(--radius-md); font-family:'Nunito',sans-serif;
+    font-weight:800; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
   }
   .btn-export{ background: var(--mint); color: var(--plum); }
   .btn-import{ background: var(--peach); color: var(--plum); }
   .btn-reset{
-    width:100%;
-    border:none;
-    padding:13px;
-    border-radius: var(--radius-md);
-    background: #FBDDE1;
-    color: var(--coral);
-    font-family:'Nunito',sans-serif;
-    font-weight:800;
-    font-size:14px;
-    cursor:pointer;
+    width:100%; border:none; padding:13px; border-radius: var(--radius-md); background: #FBDDE1;
+    color: var(--coral-deep); font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; cursor:pointer; margin-top:10px;
+  }
+  .btn-add-recur{
+    width:100%; border:none; padding:14px; border-radius: var(--radius-md); background: var(--lavender);
+    color:white; font-family:'Fredoka', sans-serif; font-weight:600; font-size:15px; cursor:pointer;
+    box-shadow: 0 8px 18px rgba(155,127,209,.4);
   }
 
-  .toast{
-    position:fixed;
-    left:50%;
-    bottom: calc(24px + env(safe-area-inset-bottom));
-    transform:translateX(-50%) translateY(20px);
-    background: var(--plum);
-    color:white;
-    padding:12px 20px;
-    border-radius: 14px;
-    font-size:14px;
-    font-weight:700;
-    box-shadow: 0 10px 26px rgba(0,0,0,.25);
-    opacity:0;
-    transition: all .25s ease;
-    z-index: 50;
-    pointer-events:none;
-    max-width: 85%;
-    text-align:center;
+  .cat-manage-row{
+    display:flex; align-items:center; gap:10px; background:var(--cream); border-radius:14px;
+    padding:10px 12px; margin-bottom:8px;
   }
-  .toast.show{
-    opacity:1;
-    transform:translateX(-50%) translateY(0);
-  }
+  .cat-manage-row .cat-dot{ width:32px; height:32px; font-size:14px; border-radius:10px; }
+  .cat-manage-row .cat-manage-name{ flex:1; font-weight:800; font-size:14px; }
+  .cat-manage-row button{ border:none; background:transparent; color:var(--coral-deep); font-size:16px; cursor:pointer; padding:4px; opacity:.8; }
+  .cat-manage-row.is-default button{ opacity:.2; cursor:not-allowed; }
 
+  .subtabs{ display:flex; gap:8px; margin-bottom:14px; }
+  .subtabs button{
+    flex:1; border:none; padding:9px 0; border-radius:12px; background: var(--cream-2); color:var(--plum-soft);
+    font-weight:800; font-size:12.5px; cursor:pointer;
+  }
+  .subtabs button.active{ background: var(--lavender); color:white; }
+
+  /* --- bottom tab bar --- */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--cream-2);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    display:flex;
+    justify-content:space-around;
+  }
+  .tabbar button{
+    background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:2px;
+    color: var(--plum-soft); font-size:10.5px; font-weight:800; padding:4px 8px; cursor:pointer; flex:1;
+  }
+  .tabbar button .tab-icon{ font-size:19px; }
+  .tabbar button.active{ color: var(--lavender-deep); }
+
+  .page{ display:none; }
+  .page.active{ display:block; }
+
+  /* --- modal --- */
   .modal-overlay{
-    position:fixed; inset:0;
-    background: rgba(74,59,82,.35);
-    display:flex; align-items:flex-end;
-    justify-content:center;
-    z-index: 60;
-    opacity:0;
-    pointer-events:none;
-    transition: opacity .2s ease;
+    position:fixed; inset:0; background: rgba(74,59,82,.35); display:flex; align-items:flex-end;
+    justify-content:center; z-index: 60; opacity:0; pointer-events:none; transition: opacity .2s ease;
   }
   .modal-overlay.show{ opacity:1; pointer-events:auto; }
   .modal-sheet{
-    background: var(--cream);
-    width:100%;
-    max-width:520px;
-    border-radius: 26px 26px 0 0;
-    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-    transform: translateY(30px);
-    transition: transform .25s ease;
-    max-height:75vh;
-    overflow-y:auto;
+    background: var(--cream); width:100%; max-width:560px; border-radius: 26px 26px 0 0;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom)); transform: translateY(30px);
+    transition: transform .25s ease; max-height:82vh; overflow-y:auto;
   }
   .modal-overlay.show .modal-sheet{ transform: translateY(0); }
   .modal-sheet h3{
-    font-family:'Fredoka', sans-serif;
-    font-size:18px;
-    margin:0 0 14px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
+    font-family:'Fredoka', sans-serif; font-size:18px; margin:0 0 14px; display:flex;
+    justify-content:space-between; align-items:center;
   }
   .modal-sheet h3 button{
-    border:none; background:var(--white); width:32px; height:32px;
-    border-radius:10px; font-size:15px; cursor:pointer; color:var(--plum-soft);
+    border:none; background:var(--white); width:32px; height:32px; border-radius:10px; font-size:15px;
+    cursor:pointer; color:var(--plum-soft);
   }
-  .cat-manage-row{
-    display:flex; align-items:center; gap:10px;
-    background:var(--white); border-radius:14px;
-    padding:10px 12px; margin-bottom:8px;
+  .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+  .modal-actions button{
+    flex:1; border:none; padding:13px; border-radius: var(--radius-md); font-weight:800; font-size:14px; cursor:pointer;
   }
-  .cat-manage-row .cat-dot{ width:34px; height:34px; font-size:15px; border-radius:10px; }
-  .cat-manage-row .cat-manage-name{ flex:1; font-weight:800; font-size:14.5px; }
-  .cat-manage-row button{
-    border:none; background:transparent; color:var(--coral);
-    font-size:16px; cursor:pointer; padding:4px;
-    opacity:.8;
+
+  .toast{
+    position:fixed; left:50%; bottom: calc(96px + env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(20px); background: var(--plum); color:white; padding:12px 20px;
+    border-radius: 14px; font-size:14px; font-weight:700; box-shadow: 0 10px 26px rgba(0,0,0,.25);
+    opacity:0; transition: all .25s ease; z-index: 50; pointer-events:none; max-width: 85%; text-align:center;
   }
-  .cat-manage-row.is-default button{ opacity:.2; cursor:not-allowed; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .checkbox-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .checkbox-row input{ width:20px; height:20px; }
+  .checkbox-row label{ font-size:13.5px; font-weight:700; color:var(--plum); text-transform:none; }
 
   ::selection{ background: var(--lavender); color:white; }
 
-  @media (prefers-reduced-motion: reduce){
-    *{ transition:none !important; }
-  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
 </style>
 </head>
 <body>
@@ -428,69 +375,132 @@
 
   <header>
     <h1>Mes <span>Sous</span> 🌸</h1>
-    <button class="icon-btn" id="categoryManageBtn" title="Gérer les catégories">⚙️</button>
+    <button class="icon-btn" id="settingsShortcut" title="Réglages" style="width:42px;height:42px;border-radius:14px;border:none;background:var(--white);box-shadow:var(--shadow);font-size:18px;cursor:pointer;">⚙️</button>
   </header>
 
-  <div class="total-card">
-    <div class="label">Total ce mois-ci</div>
-    <div class="amount" id="monthTotal">0,00 €</div>
-    <div class="sub" id="monthSub">Aucune dépense enregistrée</div>
+  <div class="month-switcher">
+    <button id="prevMonthBtn">‹</button>
+    <div class="month-label" id="monthLabel">Août 2026</div>
+    <button id="nextMonthBtn">›</button>
   </div>
 
-  <div class="card">
-    <h2>Nouvelle dépense</h2>
-    <form id="expenseForm">
-      <div class="field">
-        <label for="dateInput">Date</label>
-        <input type="date" id="dateInput" required>
+  <!-- ===== PAGE: RÉSUMÉ ===== -->
+  <div class="page" id="page-summary">
+    <div class="summary-grid">
+      <div class="summary-card income">
+        <div class="label">Recettes</div>
+        <div class="amount" id="sumIncome">0,00 €</div>
       </div>
-
-      <div class="field">
-        <label for="categorySelect">Catégorie</label>
-        <select id="categorySelect" required></select>
-        <div class="new-cat-row" id="newCatRow" style="display:none;">
-          <input type="text" id="newCatInput" placeholder="Nom de la catégorie">
-          <button type="button" id="addCatBtn">Ajouter</button>
-        </div>
+      <div class="summary-card expense">
+        <div class="label">Dépenses</div>
+        <div class="amount" id="sumExpense">0,00 €</div>
       </div>
-
-      <div class="field">
-        <label for="merchantInput">Enseigne</label>
-        <input type="text" id="merchantInput" list="merchantList" placeholder="Ex : Carrefour, Total, Amazon…" autocomplete="off">
-        <datalist id="merchantList"></datalist>
+      <div class="summary-card balance">
+        <div class="label">Solde du mois</div>
+        <div class="amount" id="sumBalance">0,00 €</div>
       </div>
-
-      <div class="field amount-field">
-        <label for="amountInput">Montant</label>
-        <input type="number" id="amountInput" inputmode="decimal" step="0.01" min="0" placeholder="0,00" required>
-      </div>
-
-      <button type="submit" class="submit-btn">Ajouter la dépense</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <h2>Import / Export</h2>
-    <div class="data-actions">
-      <button type="button" class="btn-export" id="exportBtn">⬇️ Exporter JSON</button>
-      <button type="button" class="btn-import" id="importBtn">⬆️ Importer JSON</button>
     </div>
-    <input type="file" id="importFile" accept="application/json" style="display:none;">
+
+    <div class="card">
+      <h2>Répartition des dépenses <span class="hint" id="catCountHint"></span></h2>
+      <div id="chartArea"></div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Réinitialiser</h2>
-    <button type="button" class="btn-reset" id="resetBtn">🗑️ Tout réinitialiser</button>
+  <!-- ===== PAGE: AJOUTER ===== -->
+  <div class="page" id="page-add">
+    <div class="card">
+      <h2>Nouvelle opération</h2>
+      <div class="segmented">
+        <button type="button" class="active expense-mode" id="modeExpenseBtn">➖ Dépense</button>
+        <button type="button" class="income-mode" id="modeIncomeBtn">➕ Recette</button>
+      </div>
+
+      <form id="txnForm">
+        <div class="field">
+          <label for="txnDate">Date</label>
+          <input type="date" id="txnDate" required>
+        </div>
+
+        <div class="field">
+          <label for="txnCategory">Catégorie</label>
+          <select id="txnCategory" required></select>
+          <div class="new-cat-row" id="newCatRow" style="display:none;">
+            <input type="text" id="newCatInput" placeholder="Nom de la catégorie">
+            <button type="button" id="addCatBtn">Ajouter</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="txnLabel" id="txnLabelLabel">Enseigne</label>
+          <input type="text" id="txnLabel" list="labelList" placeholder="Ex : Carrefour, Total, Amazon…" autocomplete="off">
+          <datalist id="labelList"></datalist>
+        </div>
+
+        <div class="field amount-field">
+          <label for="txnAmount">Montant</label>
+          <input type="number" id="txnAmount" inputmode="decimal" step="0.01" min="0" placeholder="0,00" required>
+        </div>
+
+        <button type="submit" class="submit-btn expense-mode" id="txnSubmitBtn">Ajouter la dépense</button>
+      </form>
+    </div>
   </div>
 
-  <div class="section-title">
-    <span>Historique</span>
+  <!-- ===== PAGE: HISTORIQUE ===== -->
+  <div class="page" id="page-history">
+    <div class="card">
+      <h2>Historique du mois</h2>
+      <div id="historyList"></div>
+    </div>
   </div>
-  <div id="expenseList"></div>
 
+  <!-- ===== PAGE: RÉCURRENCES ===== -->
+  <div class="page" id="page-recurring">
+    <div class="card">
+      <h2>Opérations récurrentes</h2>
+      <div id="recurringList"></div>
+      <button type="button" class="btn-add-recur" id="openAddRecurBtn" style="margin-top:8px;">➕ Ajouter une récurrence</button>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: RÉGLAGES ===== -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <h2>Catégories</h2>
+      <div class="subtabs">
+        <button type="button" class="active" id="catTabExpense">Dépenses</button>
+        <button type="button" id="catTabIncome">Recettes</button>
+      </div>
+      <div id="settingsCatList"></div>
+      <div class="new-cat-row" style="margin-top:8px;">
+        <input type="text" id="settingsNewCatInput" placeholder="Nouvelle catégorie">
+        <button type="button" id="settingsAddCatBtn">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Import / Export</h2>
+      <div class="data-actions">
+        <button type="button" class="btn-export" id="exportBtn">⬇️ Exporter JSON</button>
+        <button type="button" class="btn-import" id="importBtn">⬆️ Importer JSON</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+      <button type="button" class="btn-reset" id="resetBtn">🗑️ Tout réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ===== bottom tab bar ===== -->
+<div class="tabbar">
+  <button class="active" data-page="summary"><span class="tab-icon">📊</span>Résumé</button>
+  <button data-page="add"><span class="tab-icon">➕</span>Ajouter</button>
+  <button data-page="history"><span class="tab-icon">🧾</span>Historique</button>
+  <button data-page="recurring"><span class="tab-icon">🔁</span>Récurrent</button>
+  <button data-page="settings"><span class="tab-icon">⚙️</span>Réglages</button>
+</div>
 
 <script src="app.js"></script>
 </body>
