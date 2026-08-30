@@ -178,6 +178,7 @@ function showConfirm(message, { okLabel = "Confirmer", cancelLabel = "Annuler", 
    template that don't already exist as a transaction. Safe to call repeatedly. */
 function generateRecurringOccurrences() {
   const today = todayStr();
+  const todayD = new Date(today + "T00:00:00");
   let created = 0;
 
   recurring.forEach(tpl => {
@@ -185,36 +186,44 @@ function generateRecurringOccurrences() {
 
     const start = new Date(tpl.startDate + "T00:00:00");
     const end = tpl.endDate ? new Date(tpl.endDate + "T00:00:00") : null;
-    const todayD = new Date(today + "T00:00:00");
+    const freq = tpl.frequency === "yearly" ? "yearly" : "monthly";
 
-    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    const limit = new Date(todayD.getFullYear(), todayD.getMonth(), 1);
-
-    while (cursor <= limit) {
-      const y = cursor.getFullYear();
-      const m = cursor.getMonth() + 1;
-      const day = Math.min(tpl.dayOfMonth, daysInMonth(y, m));
-      const occDate = new Date(y, m - 1, day);
+    function tryCreate(occDate) {
+      if (occDate < start || occDate > todayD) return;
+      if (end && occDate > end) return;
       const occStr = occDate.toISOString().slice(0, 10);
+      const exists = transactions.some(t => t.recurringId === tpl.id && t.date === occStr);
+      if (exists) return;
+      transactions.push({
+        id: uid(),
+        type: tpl.type,
+        date: occStr,
+        categoryId: tpl.categoryId,
+        label: tpl.label,
+        amount: tpl.amount,
+        createdAt: new Date().toISOString(),
+        recurringId: tpl.id,
+      });
+      created++;
+    }
 
-      const withinRange = occDate >= start && occDate <= todayD && (!end || occDate <= end);
-      if (withinRange) {
-        const exists = transactions.some(t => t.recurringId === tpl.id && t.date === occStr);
-        if (!exists) {
-          transactions.push({
-            id: uid(),
-            type: tpl.type,
-            date: occStr,
-            categoryId: tpl.categoryId,
-            label: tpl.label,
-            amount: tpl.amount,
-            createdAt: new Date().toISOString(),
-            recurringId: tpl.id,
-          });
-          created++;
-        }
+    if (freq === "monthly") {
+      let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit = new Date(todayD.getFullYear(), todayD.getMonth(), 1);
+      while (cursor <= limit) {
+        const y = cursor.getFullYear();
+        const m = cursor.getMonth() + 1;
+        const day = Math.min(tpl.dayOfMonth, daysInMonth(y, m));
+        tryCreate(new Date(y, m - 1, day));
+        cursor = new Date(y, m, 1);
       }
-      cursor = new Date(y, m, 1);
+    } else {
+      // yearly: same month + day, once per year
+      for (let y = start.getFullYear(); y <= todayD.getFullYear(); y++) {
+        const month = tpl.month || 1;
+        const day = Math.min(tpl.dayOfMonth, daysInMonth(y, month));
+        tryCreate(new Date(y, month - 1, day));
+      }
     }
   });
 
@@ -745,16 +754,20 @@ function renderRecurring() {
     return;
   }
 
+  const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const sorted = [...recurring].sort((a, b) => a.dayOfMonth - b.dayOfMonth);
   sorted.forEach(tpl => {
     const cat = getCategory(tpl.type, tpl.categoryId);
+    const freqText = tpl.frequency === "yearly"
+      ? `le ${tpl.dayOfMonth} ${MONTH_NAMES[(tpl.month || 1) - 1]}, chaque année`
+      : `le ${tpl.dayOfMonth} de chaque mois`;
     const row = document.createElement("div");
     row.className = "recur-item" + (tpl.active ? "" : " inactive");
     row.innerHTML = `
       <div class="cat-dot" style="background:${cat.color}33;">${cat.emoji}</div>
       <div class="recur-info">
         <div class="recur-name">${escapeHTML(tpl.label || cat.name)}</div>
-        <div class="recur-sub">${cat.name} · le ${tpl.dayOfMonth} de chaque mois</div>
+        <div class="recur-sub">${cat.name} · ${freqText}</div>
       </div>
       <div class="recur-amount ${tpl.type === "expense" ? "" : ""}" style="color:${tpl.type === "income" ? "var(--mint-deep)" : "var(--coral-deep)"};">
         ${tpl.type === "expense" ? "-" : "+"}${formatEUR(tpl.amount)}
@@ -779,6 +792,14 @@ function renderRecurring() {
 function openRecurEditor(id) {
   const existing = id ? recurring.find(r => r.id === id) : null;
   const type = existing ? existing.type : "expense";
+  const freq = existing && existing.frequency === "yearly" ? "yearly" : "monthly";
+
+  const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const defaultMonth = existing ? existing.month : new Date().getMonth() + 1;
+  const monthOptionsHTML = MONTH_NAMES.map((name, i) => {
+    const val = i + 1;
+    return `<option value="${val}" ${defaultMonth === val ? "selected" : ""}>${name}</option>`;
+  }).join("");
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
@@ -791,9 +812,14 @@ function openRecurEditor(id) {
         <button type="button" class="recur-mode-btn income-mode ${type === "income" ? "active" : ""}" data-type="income">➕ Recette</button>
       </div>
 
+      <div class="subtabs">
+        <button type="button" class="recur-freq-btn ${freq === "monthly" ? "active" : ""}" data-freq="monthly">Mensuelle</button>
+        <button type="button" class="recur-freq-btn ${freq === "yearly" ? "active" : ""}" data-freq="yearly">Annuelle</button>
+      </div>
+
       <div class="field">
         <label>Nom</label>
-        <input type="text" id="recurLabel" placeholder="Ex : Loyer, Netflix, Salaire…" value="${existing ? escapeHTML(existing.label || "") : ""}">
+        <input type="text" id="recurLabel" placeholder="Ex : Loyer, Netflix, Taxe foncière…" value="${existing ? escapeHTML(existing.label || "") : ""}">
       </div>
       <div class="field">
         <label>Catégorie</label>
@@ -803,8 +829,12 @@ function openRecurEditor(id) {
         <label>Montant</label>
         <input type="number" id="recurAmount" step="0.01" min="0" value="${existing ? existing.amount : ""}">
       </div>
+      <div class="field" id="recurMonthField" style="display:${freq === "yearly" ? "block" : "none"};">
+        <label>Mois</label>
+        <select id="recurMonth">${monthOptionsHTML}</select>
+      </div>
       <div class="field">
-        <label>Jour du mois</label>
+        <label id="recurDayLabel">${freq === "yearly" ? "Jour du mois" : "Jour du mois"}</label>
         <input type="number" id="recurDay" min="1" max="31" value="${existing ? existing.dayOfMonth : 1}">
       </div>
       <div class="field">
@@ -829,6 +859,8 @@ function openRecurEditor(id) {
   requestAnimationFrame(() => overlay.classList.add("show"));
 
   let recurType = type;
+  let recurFreq = freq;
+
   function fillCategorySelect() {
     const sel = overlay.querySelector("#recurCategory");
     sel.innerHTML = "";
@@ -850,6 +882,14 @@ function openRecurEditor(id) {
     });
   });
 
+  overlay.querySelectorAll(".recur-freq-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      recurFreq = btn.dataset.freq;
+      overlay.querySelectorAll(".recur-freq-btn").forEach(b => b.classList.toggle("active", b.dataset.freq === recurFreq));
+      overlay.querySelector("#recurMonthField").style.display = recurFreq === "yearly" ? "block" : "none";
+    });
+  });
+
   function close() {
     overlay.classList.remove("show");
     setTimeout(() => overlay.remove(), 200);
@@ -862,6 +902,7 @@ function openRecurEditor(id) {
     const categoryId = overlay.querySelector("#recurCategory").value;
     const amount = parseFloat(overlay.querySelector("#recurAmount").value);
     const dayOfMonth = parseInt(overlay.querySelector("#recurDay").value, 10);
+    const month = parseInt(overlay.querySelector("#recurMonth").value, 10);
     const startDate = overlay.querySelector("#recurStart").value;
     const endDate = overlay.querySelector("#recurEnd").value || null;
     const active = overlay.querySelector("#recurActive").checked;
@@ -871,13 +912,16 @@ function openRecurEditor(id) {
       return;
     }
 
+    const payload = {
+      type: recurType, categoryId, label, amount: Math.round(amount * 100) / 100,
+      frequency: recurFreq, dayOfMonth, month: recurFreq === "yearly" ? month : null,
+      startDate, endDate, active,
+    };
+
     if (existing) {
-      Object.assign(existing, { type: recurType, categoryId, label, amount: Math.round(amount * 100) / 100, dayOfMonth, startDate, endDate, active });
+      Object.assign(existing, payload);
     } else {
-      recurring.push({
-        id: uid(), type: recurType, categoryId, label,
-        amount: Math.round(amount * 100) / 100, dayOfMonth, startDate, endDate, active,
-      });
+      recurring.push({ id: uid(), ...payload });
     }
     saveRecur();
     const created = generateRecurringOccurrences();
