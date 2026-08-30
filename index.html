@@ -303,6 +303,19 @@
   }
   .subtabs button.active{ background: var(--lavender); color:white; }
 
+  .month-row{
+    display:flex; align-items:center; gap:10px; padding:10px 4px;
+    border-bottom: 1px solid var(--cream-2);
+  }
+  .month-row:last-child{ border-bottom:none; }
+  .month-row .month-name{ flex:1; font-weight:800; font-size:13.5px; color:var(--plum); text-transform:capitalize; }
+  .month-row .month-figures{ text-align:right; font-size:12px; }
+  .month-row .month-figures .mi{ color: var(--mint-deep); font-weight:800; }
+  .month-row .month-figures .me{ color: var(--coral-deep); font-weight:800; }
+  .month-row .month-net{
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:13.5px; width:74px; text-align:right; flex-shrink:0;
+  }
+
   /* --- bottom tab bar --- */
   .tabbar{
     position:fixed; left:0; right:0; bottom:0; z-index:40;
@@ -386,6 +399,11 @@
 
   <!-- ===== PAGE: RÉSUMÉ ===== -->
   <div class="page" id="page-summary">
+    <div class="subtabs">
+      <button type="button" class="active" id="viewTabMonth">Ce mois</button>
+      <button type="button" id="viewTabYear">Cette année</button>
+    </div>
+
     <div class="summary-grid">
       <div class="summary-card income">
         <div class="label">Recettes</div>
@@ -396,7 +414,7 @@
         <div class="amount" id="sumExpense">0,00 €</div>
       </div>
       <div class="summary-card balance">
-        <div class="label">Solde du mois</div>
+        <div class="label" id="balanceLabel">Solde du mois</div>
         <div class="amount" id="sumBalance">0,00 €</div>
       </div>
     </div>
@@ -404,6 +422,11 @@
     <div class="card">
       <h2>Répartition des dépenses <span class="hint" id="catCountHint"></span></h2>
       <div id="chartArea"></div>
+    </div>
+
+    <div class="card" id="yearlyBreakdownCard" style="display:none;">
+      <h2>Détail par mois</h2>
+      <div id="yearlyBreakdownList"></div>
     </div>
   </div>
 

@@ -39,7 +39,10 @@ let recurring = [];      // { id, type, categoryId, label, amount, dayOfMonth, s
 
 let currentMode = "expense";     // for the Ajouter form
 let currentSettingsCatType = "expense"; // for the Réglages category subtabs
+let currentPage = "summary";     // active bottom-tab page
 let currentMonth = "";           // "YYYY-MM"
+let currentYear = 0;             // number
+let summaryView = "month";       // "month" | "year" (only meaningful on the Résumé page)
 
 /* ================= persistence ================= */
 
@@ -226,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const created = generateRecurringOccurrences();
 
   currentMonth = todayStr().slice(0, 7);
+  currentYear = new Date().getFullYear();
 
   document.getElementById("txnDate").value = todayStr();
 
@@ -235,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
   wireRecurring();
   wireSettings();
   wireMonthSwitcher();
+  wireSummaryViewTabs();
 
   document.getElementById("settingsShortcut").addEventListener("click", () => switchPage("settings"));
 
@@ -251,30 +256,58 @@ function wireTabBar() {
 }
 
 function switchPage(page) {
+  currentPage = page;
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById(`page-${page}`).classList.add("active");
   document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b.dataset.page === page));
+  renderMonthLabel();
   if (page === "summary") renderSummary();
   if (page === "history") renderHistory();
   if (page === "recurring") renderRecurring();
   if (page === "settings") renderSettingsCategories();
 }
 
-/* ================= month switcher ================= */
+/* ================= summary view (mois / année) ================= */
 
-function wireMonthSwitcher() {
-  document.getElementById("prevMonthBtn").addEventListener("click", () => shiftMonth(-1));
-  document.getElementById("nextMonthBtn").addEventListener("click", () => shiftMonth(1));
+function wireSummaryViewTabs() {
+  document.getElementById("viewTabMonth").addEventListener("click", () => setSummaryView("month"));
+  document.getElementById("viewTabYear").addEventListener("click", () => setSummaryView("year"));
 }
 
-function shiftMonth(delta) {
-  const [y, m] = currentMonth.split("-").map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function setSummaryView(view) {
+  summaryView = view;
+  document.getElementById("viewTabMonth").classList.toggle("active", view === "month");
+  document.getElementById("viewTabYear").classList.toggle("active", view === "year");
+  document.getElementById("yearlyBreakdownCard").style.display = view === "year" ? "block" : "none";
+  document.getElementById("balanceLabel").textContent = view === "year" ? "Solde de l'année" : "Solde du mois";
+  renderMonthLabel();
+  renderSummary();
+}
+/* ================= month/year switcher ================= */
+
+function wireMonthSwitcher() {
+  document.getElementById("prevMonthBtn").addEventListener("click", () => shiftPeriod(-1));
+  document.getElementById("nextMonthBtn").addEventListener("click", () => shiftPeriod(1));
+}
+
+function isYearMode() { return currentPage === "summary" && summaryView === "year"; }
+
+function shiftPeriod(delta) {
+  if (isYearMode()) {
+    currentYear += delta;
+  } else {
+    const [y, m] = currentMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
   renderAll();
 }
 
 function renderMonthLabel() {
+  if (isYearMode()) {
+    document.getElementById("monthLabel").textContent = String(currentYear);
+    return;
+  }
   const [y, m] = currentMonth.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
   document.getElementById("monthLabel").textContent = capitalize(d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }));
@@ -294,10 +327,18 @@ function monthTransactions() {
   return transactions.filter(t => ymOf(t.date) === currentMonth);
 }
 
+function yearTransactions() {
+  return transactions.filter(t => t.date.slice(0, 4) === String(currentYear));
+}
+
+function periodTransactions() {
+  return summaryView === "year" ? yearTransactions() : monthTransactions();
+}
+
 /* ================= PAGE: summary ================= */
 
 function renderSummary() {
-  const txns = monthTransactions();
+  const txns = periodTransactions();
   const incomeTotal = txns.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expenseTotal = txns.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
@@ -306,6 +347,48 @@ function renderSummary() {
   document.getElementById("sumBalance").textContent = formatEUR(incomeTotal - expenseTotal);
 
   renderChart(txns.filter(t => t.type === "expense"), expenseTotal);
+
+  if (summaryView === "year") renderYearlyBreakdown();
+}
+
+function renderYearlyBreakdown() {
+  const list = document.getElementById("yearlyBreakdownList");
+  list.innerHTML = "";
+
+  const yearTxns = yearTransactions();
+  if (yearTxns.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">🗓️</div>
+        <p>Aucune opération en ${currentYear}</p>
+        <span>Le détail par mois apparaîtra ici</span>
+      </div>`;
+    return;
+  }
+
+  for (let m = 1; m <= 12; m++) {
+    const ym = `${currentYear}-${String(m).padStart(2, "0")}`;
+    const monthTxns = yearTxns.filter(t => ymOf(t.date) === ym);
+    if (monthTxns.length === 0) continue;
+
+    const income = monthTxns.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const expense = monthTxns.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    const net = income - expense;
+
+    const label = capitalize(new Date(currentYear, m - 1, 1).toLocaleDateString("fr-FR", { month: "long" }));
+
+    const row = document.createElement("div");
+    row.className = "month-row";
+    row.innerHTML = `
+      <div class="month-name">${label}</div>
+      <div class="month-figures">
+        <div class="mi">+${formatEUR(income)}</div>
+        <div class="me">-${formatEUR(expense)}</div>
+      </div>
+      <div class="month-net" style="color:${net >= 0 ? "var(--mint-deep)" : "var(--coral-deep)"};">${net >= 0 ? "+" : ""}${formatEUR(net)}</div>
+    `;
+    list.appendChild(row);
+  }
 }
 
 function renderChart(expenseTxns, total) {
@@ -920,7 +1003,27 @@ function importJSON(e) {
   const reader = new FileReader();
   reader.onload = async () => {
     try {
-      const data = JSON.parse(reader.result);
+      let data = JSON.parse(reader.result);
+
+      // Ancien format (v1) : { expenses, categories, merchants } — on le convertit à la volée.
+      if (!Array.isArray(data.transactions) && Array.isArray(data.expenses)) {
+        data = {
+          expenseCategories: data.categories,
+          incomeCategories: null,
+          labels: data.merchants,
+          recurring: null,
+          transactions: data.expenses.map(x => ({
+            id: x.id || uid(),
+            type: "expense",
+            date: x.date,
+            categoryId: x.categoryId,
+            label: x.merchant || "",
+            amount: x.amount,
+            createdAt: x.createdAt || new Date().toISOString(),
+          })),
+        };
+      }
+
       if (!Array.isArray(data.transactions)) throw new Error("Format invalide");
 
       const replace = await showConfirm(
