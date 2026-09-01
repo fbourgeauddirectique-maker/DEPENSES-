@@ -355,9 +355,114 @@ function renderSummary() {
   document.getElementById("sumExpense").textContent = formatEUR(expenseTotal);
   document.getElementById("sumBalance").textContent = formatEUR(incomeTotal - expenseTotal);
 
-  renderChart(txns.filter(t => t.type === "expense"), expenseTotal);
+  renderChart("chartArea", "catCountHint", txns.filter(t => t.type === "expense"), expenseTotal, "expense");
+  renderChart("incomeChartArea", "incomeCatCountHint", txns.filter(t => t.type === "income"), incomeTotal, "income");
+  renderCategoryDiff(txns, expenseTotal, incomeTotal);
 
   if (summaryView === "year") renderYearlyBreakdown();
+}
+
+function renderChart(areaId, hintId, catTxns, total, type) {
+  const area = document.getElementById(areaId);
+  const hint = document.getElementById(hintId);
+  const emptyLabel = type === "income" ? "Aucune recette ce mois-ci" : "Aucune dépense ce mois-ci";
+  const emptySub = type === "income" ? "Le graphique apparaîtra dès ta première recette" : "Le graphique apparaîtra dès ta première dépense";
+  const centerLabel = type === "income" ? "reçu" : "dépensé";
+
+  if (catTxns.length === 0) {
+    hint.textContent = "";
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">🍃</div>
+        <p>${emptyLabel}</p>
+        <span>${emptySub}</span>
+      </div>`;
+    return;
+  }
+
+  const byCat = {};
+  catTxns.forEach(t => { byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount; });
+
+  const rows = Object.keys(byCat)
+    .map(catId => ({ catId, amount: byCat[catId], cat: getCategory(type, catId) }))
+    .sort((a, b) => b.amount - a.amount);
+
+  hint.textContent = `${rows.length} catégorie${rows.length > 1 ? "s" : ""}`;
+
+  let gradientParts = [];
+  let cursor = 0;
+  rows.forEach(r => {
+    const pct = total > 0 ? (r.amount / total) * 100 : 0;
+    gradientParts.push(`${r.cat.color} ${cursor}% ${cursor + pct}%`);
+    cursor += pct;
+  });
+  if (cursor < 100) gradientParts.push(`var(--cream-2) ${cursor}% 100%`);
+
+  const legendHTML = rows.map(r => {
+    const pct = total > 0 ? (r.amount / total) * 100 : 0;
+    return `
+      <div class="legend-row">
+        <div class="legend-dot" style="background:${r.cat.color};"></div>
+        <div class="legend-name">${r.cat.emoji} ${escapeHTML(r.cat.name)}</div>
+        <div class="legend-pct">${pct.toFixed(1)}%</div>
+        <div class="legend-amt">${formatEUR(r.amount)}</div>
+      </div>`;
+  }).join("");
+
+  area.innerHTML = `
+    <div class="chart-wrap">
+      <div class="donut" style="background: conic-gradient(${gradientParts.join(",")});">
+        <div class="hole">
+          <div class="total">${formatEUR(total)}</div>
+          <div class="sub">${centerLabel}</div>
+        </div>
+      </div>
+    </div>
+    <div class="legend">${legendHTML}</div>
+  `;
+}
+
+function renderCategoryDiff(txns, expenseTotal, incomeTotal) {
+  const container = document.getElementById("categoryDiffList");
+  container.innerHTML = "";
+
+  const byExpenseCat = {};
+  txns.filter(t => t.type === "expense").forEach(t => { byExpenseCat[t.categoryId] = (byExpenseCat[t.categoryId] || 0) + t.amount; });
+  const byIncomeCat = {};
+  txns.filter(t => t.type === "income").forEach(t => { byIncomeCat[t.categoryId] = (byIncomeCat[t.categoryId] || 0) + t.amount; });
+
+  const rows = [
+    ...Object.keys(byExpenseCat).map(catId => ({ type: "expense", catId, amount: byExpenseCat[catId], cat: getCategory("expense", catId) })),
+    ...Object.keys(byIncomeCat).map(catId => ({ type: "income", catId, amount: byIncomeCat[catId], cat: getCategory("income", catId) })),
+  ].sort((a, b) => b.amount - a.amount);
+
+  if (rows.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">⚖️</div>
+        <p>Aucune opération à comparer</p>
+        <span>Ajoute des recettes et des dépenses pour voir l'écart</span>
+      </div>`;
+    return;
+  }
+
+  const maxAmount = Math.max(...rows.map(r => r.amount));
+
+  container.innerHTML = rows.map(r => {
+    const typeTotal = r.type === "income" ? incomeTotal : expenseTotal;
+    const pct = typeTotal > 0 ? (r.amount / typeTotal) * 100 : 0;
+    const barPct = maxAmount > 0 ? (r.amount / maxAmount) * 100 : 0;
+    const barColor = r.type === "income" ? "var(--mint-deep)" : "var(--coral-deep)";
+    const sign = r.type === "income" ? "+" : "-";
+    return `
+      <div class="diff-row">
+        <div class="diff-top">
+          <div class="diff-name">${r.cat.emoji} ${escapeHTML(r.cat.name)}</div>
+          <div class="diff-figures" style="color:${barColor};">${sign}${formatEUR(r.amount)}<span class="pct">${pct.toFixed(1)}%</span></div>
+        </div>
+        <div class="diff-bar-track"><div class="diff-bar-fill" style="width:${barPct}%; background:${barColor};"></div></div>
+      </div>`;
+  }).join("");
 }
 
 function renderYearlyBreakdown() {
@@ -398,65 +503,6 @@ function renderYearlyBreakdown() {
     `;
     list.appendChild(row);
   }
-}
-
-function renderChart(expenseTxns, total) {
-  const area = document.getElementById("chartArea");
-  const hint = document.getElementById("catCountHint");
-
-  if (expenseTxns.length === 0) {
-    hint.textContent = "";
-    area.innerHTML = `
-      <div class="empty-state">
-        <div class="emoji">🍃</div>
-        <p>Aucune dépense ce mois-ci</p>
-        <span>Le graphique apparaîtra dès ta première dépense</span>
-      </div>`;
-    return;
-  }
-
-  const byCat = {};
-  expenseTxns.forEach(t => {
-    byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount;
-  });
-
-  const rows = Object.keys(byCat)
-    .map(catId => ({ catId, amount: byCat[catId], cat: getCategory("expense", catId) }))
-    .sort((a, b) => b.amount - a.amount);
-
-  hint.textContent = `${rows.length} catégorie${rows.length > 1 ? "s" : ""}`;
-
-  let gradientParts = [];
-  let cursor = 0;
-  rows.forEach(r => {
-    const pct = total > 0 ? (r.amount / total) * 100 : 0;
-    gradientParts.push(`${r.cat.color} ${cursor}% ${cursor + pct}%`);
-    cursor += pct;
-  });
-  if (cursor < 100) gradientParts.push(`var(--cream-2) ${cursor}% 100%`);
-
-  const legendHTML = rows.map(r => {
-    const pct = total > 0 ? (r.amount / total) * 100 : 0;
-    return `
-      <div class="legend-row">
-        <div class="legend-dot" style="background:${r.cat.color};"></div>
-        <div class="legend-name">${r.cat.emoji} ${escapeHTML(r.cat.name)}</div>
-        <div class="legend-pct">${pct.toFixed(1)}%</div>
-        <div class="legend-amt">${formatEUR(r.amount)}</div>
-      </div>`;
-  }).join("");
-
-  area.innerHTML = `
-    <div class="chart-wrap">
-      <div class="donut" style="background: conic-gradient(${gradientParts.join(",")});">
-        <div class="hole">
-          <div class="total">${formatEUR(total)}</div>
-          <div class="sub">dépensé</div>
-        </div>
-      </div>
-    </div>
-    <div class="legend">${legendHTML}</div>
-  `;
 }
 
 /* ================= PAGE: add transaction ================= */

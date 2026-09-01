@@ -316,6 +316,16 @@
     font-family:'Fredoka', sans-serif; font-weight:600; font-size:13.5px; width:74px; text-align:right; flex-shrink:0;
   }
 
+  .diff-row{ margin-bottom:13px; }
+  .diff-row .diff-top{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; gap:8px;
+  }
+  .diff-row .diff-name{ font-weight:800; font-size:13px; color:var(--plum); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .diff-row .diff-figures{ font-family:'Fredoka', sans-serif; font-weight:600; font-size:12.5px; white-space:nowrap; flex-shrink:0; }
+  .diff-row .diff-figures .pct{ color:var(--plum-soft); font-family:'Nunito',sans-serif; font-weight:800; font-size:11px; margin-left:5px; }
+  .diff-bar-track{ height:9px; border-radius:6px; background: var(--cream-2); overflow:hidden; }
+  .diff-bar-fill{ height:100%; border-radius:6px; }
+
   /* --- bottom tab bar --- */
   .tabbar{
     position:fixed; left:0; right:0; bottom:0; z-index:40;
@@ -422,6 +432,16 @@
     <div class="card">
       <h2>Répartition des dépenses <span class="hint" id="catCountHint"></span></h2>
       <div id="chartArea"></div>
+    </div>
+
+    <div class="card">
+      <h2>Répartition des recettes <span class="hint" id="incomeCatCountHint"></span></h2>
+      <div id="incomeChartArea"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recettes vs dépenses par catégorie</h2>
+      <div id="categoryDiffList"></div>
     </div>
 
     <div class="card" id="yearlyBreakdownCard" style="display:none;">
