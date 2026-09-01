@@ -685,7 +685,7 @@ function renderHistory() {
         <div class="cat-dot" style="background:${cat.color}33;">${cat.emoji}</div>
         <div class="txn-info">
           <div class="cat-name">${escapeHTML(cat.name)}${t.label ? ` · ${escapeHTML(t.label)}` : ""}</div>
-          <div class="txn-sub">${t.recurringId ? "🔁 " : ""}${t.type === "income" ? "Recette" : "Dépense"}</div>
+          <div class="txn-sub">${t.recurringId ? "🔁 " : ""}${t.syncKey ? "🔗 " : ""}${t.type === "income" ? "Recette" : "Dépense"}</div>
         </div>
         <div class="txn-amount ${t.type}">${t.type === "expense" ? "-" : "+"}${formatEUR(t.amount)}</div>
       `;
@@ -1134,9 +1134,18 @@ function importJSON(e) {
       if (replace) {
         transactions = data.transactions;
       } else {
-        const existingIds = new Set(transactions.map(x => x.id));
         data.transactions.forEach(x => {
-          transactions.push(existingIds.has(x.id) ? { ...x, id: uid() } : x);
+          // Opérations synchronisées depuis une autre appli (ex. RH & NDF) : on les
+          // met à jour en place plutôt que d'en créer une nouvelle à chaque envoi.
+          if (x.syncKey) {
+            const idx = transactions.findIndex(t => t.syncKey === x.syncKey);
+            if (idx !== -1) {
+              transactions[idx] = { ...transactions[idx], ...x, id: transactions[idx].id };
+              return;
+            }
+          }
+          const idExists = transactions.some(t => t.id === x.id);
+          transactions.push(idExists ? { ...x, id: uid() } : x);
         });
       }
       saveTxn(); saveExpCat(); saveIncCat(); saveRecur();
