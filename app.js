@@ -1,4 +1,4 @@
-/* ===================== Mes Sous — budget mensuel ===================== */
+/* ===================== FINANCES — budget mensuel ===================== */
 
 /* ---------- storage keys (v2) ---------- */
 const TXN_KEY = "mesSous.transactions.v2";
