@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>FINANCES · Budget</title>
+<title>Mes Sous · Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -36,8 +36,14 @@
     background: var(--cream);
     color: var(--plum);
     font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
-    min-height:100vh;
+    height:100%;
+    overflow:hidden;
     overscroll-behavior-y: contain;
+  }
+  body{
+    display:flex;
+    flex-direction:column;
+    height: 100dvh;
   }
 
   .blob{ position: fixed; border-radius: 50%; filter: blur(2px); opacity:.5; z-index:0; pointer-events:none; }
@@ -48,9 +54,13 @@
     position:relative;
     z-index:1;
     max-width:560px;
+    width:100%;
     margin:0 auto;
-    padding: max(18px, env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
-    min-height:100vh;
+    padding: max(18px, env(safe-area-inset-top)) 16px 28px;
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
   }
 
   header{
@@ -328,7 +338,8 @@
 
   /* --- bottom tab bar --- */
   .tabbar{
-    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    position:relative; z-index:40;
+    flex-shrink:0;
     background: rgba(255,255,255,.92);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -373,7 +384,7 @@
   }
 
   .toast{
-    position:fixed; left:50%; bottom: calc(96px + env(safe-area-inset-bottom));
+    position:fixed; left:50%; bottom: calc(76px + env(safe-area-inset-bottom));
     transform:translateX(-50%) translateY(20px); background: var(--plum); color:white; padding:12px 20px;
     border-radius: 14px; font-size:14px; font-weight:700; box-shadow: 0 10px 26px rgba(0,0,0,.25);
     opacity:0; transition: all .25s ease; z-index: 50; pointer-events:none; max-width: 85%; text-align:center;
