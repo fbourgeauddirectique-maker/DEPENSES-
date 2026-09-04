@@ -1,4 +1,4 @@
-/* ===================== FINANCES — budget mensuel ===================== */
+/* ===================== Mes Sous — budget mensuel ===================== */
 
 /* ---------- storage keys (v2) ---------- */
 const TXN_KEY = "mesSous.transactions.v2";
@@ -315,11 +315,20 @@ function shiftPeriod(delta) {
 function renderMonthLabel() {
   if (isYearMode()) {
     document.getElementById("monthLabel").textContent = String(currentYear);
+    updateExcelExportHint();
     return;
   }
   const [y, m] = currentMonth.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
   document.getElementById("monthLabel").textContent = capitalize(d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }));
+  updateExcelExportHint();
+}
+
+function updateExcelExportHint() {
+  const [y, m] = currentMonth.split("-").map(Number);
+  const label = capitalize(new Date(y, m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }));
+  const hint = document.getElementById("excelExportHint");
+  if (hint) hint.textContent = `Génère un classeur pour ${label} (résumé, répartition par catégorie, détail des opérations).`;
 }
 
 /* ================= render orchestration ================= */
@@ -1007,6 +1016,7 @@ function wireSettings() {
   document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importFile").click());
   document.getElementById("importFile").addEventListener("change", importJSON);
   document.getElementById("resetBtn").addEventListener("click", resetAll);
+  document.getElementById("exportExcelBtn").addEventListener("click", exportMonthExcel);
 }
 
 function setSettingsCatType(type) {
@@ -1183,7 +1193,257 @@ function mergeArrays(current, incoming, key) {
   return result;
 }
 
-/* ================= reset ================= */
+/* ================= export Excel mensuel ================= */
+
+function ensureExcelJSLoaded() {
+  return new Promise((resolve, reject) => {
+    if (window.ExcelJS) return resolve();
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("load failed"));
+    document.head.appendChild(script);
+  });
+}
+
+const XLS_COLORS = {
+  cream: "FFFDF6EF",
+  cream2: "FFFBEFE2",
+  lavender: "FFC9B6E8",
+  lavenderDeep: "FF9B7FD1",
+  mint: "FFA9E4D0",
+  mintDeep: "FF5EBE9A",
+  coral: "FFFF8FA3",
+  coralDeep: "FFE85D74",
+  peach: "FFFFD1A9",
+  plum: "FF4A3B52",
+  plumSoft: "FF7A6B85",
+  white: "FFFFFFFF",
+};
+
+function xlsGroupByCategory(list, type) {
+  const map = {};
+  list.forEach(t => { map[t.categoryId] = (map[t.categoryId] || 0) + t.amount; });
+  return Object.keys(map)
+    .map(id => ({ cat: getCategory(type, id), amount: map[id] }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function xlsBanner(ws, row, text, fillArgb, fontArgb) {
+  ws.mergeCells(`B${row}:F${row}`);
+  const cell = ws.getCell(`B${row}`);
+  cell.value = text;
+  cell.font = { bold: true, size: 11, color: { argb: fontArgb || XLS_COLORS.plum } };
+  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fillArgb } };
+  cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+  ws.getRow(row).height = 22;
+}
+
+function xlsTableHeader(ws, row, labels) {
+  // labels: [ [col, text], ... ]
+  labels.forEach(([col, text]) => {
+    const cell = ws.getCell(`${col}${row}`);
+    cell.value = text;
+    cell.font = { bold: true, size: 9.5, color: { argb: XLS_COLORS.plumSoft } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLS_COLORS.cream2 } };
+    cell.alignment = { vertical: "middle", horizontal: col === "B" ? "left" : "right" };
+  });
+  ws.getRow(row).height = 18;
+}
+
+async function exportMonthExcel() {
+  showToast("Génération du fichier Excel…");
+  try {
+    await ensureExcelJSLoaded();
+  } catch (e) {
+    showToast("Connexion internet nécessaire pour générer le fichier Excel");
+    return;
+  }
+
+  const [y, m] = currentMonth.split("-").map(Number);
+  const monthDate = new Date(y, m - 1, 1);
+  const monthTitle = monthDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).toUpperCase();
+  const sheetName = monthDate.toLocaleDateString("fr-FR", { month: "short", year: "numeric" }).replace(".", "").slice(0, 31);
+
+  const txns = monthTransactions().slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const incomeTxns = txns.filter(t => t.type === "income");
+  const expenseTxns = txns.filter(t => t.type === "expense");
+  const incomeTotal = incomeTxns.reduce((s, t) => s + t.amount, 0);
+  const expenseTotal = expenseTxns.reduce((s, t) => s + t.amount, 0);
+  const solde = incomeTotal - expenseTotal;
+
+  const expenseByCat = xlsGroupByCategory(expenseTxns, "expense");
+  const incomeByCat = xlsGroupByCategory(incomeTxns, "income");
+
+  const ExcelJS = window.ExcelJS;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mes Sous";
+  wb.created = new Date();
+  const ws = wb.addWorksheet(sheetName, { views: [{ showGridLines: false }] });
+
+  ws.columns = [
+    { width: 3 }, { width: 22 }, { width: 16 }, { width: 18 }, { width: 20 }, { width: 14 }, { width: 3 },
+  ];
+
+  let row = 1;
+
+  // --- titre ---
+  ws.mergeCells(`B${row}:F${row}`);
+  const titleCell = ws.getCell(`B${row}`);
+  titleCell.value = monthTitle;
+  titleCell.font = { bold: true, size: 26, color: { argb: XLS_COLORS.white } };
+  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLS_COLORS.lavenderDeep } };
+  titleCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+  ws.getRow(row).height = 42;
+  row++;
+
+  ws.mergeCells(`B${row}:F${row}`);
+  const subCell = ws.getCell(`B${row}`);
+  subCell.value = `Généré le ${new Date().toLocaleDateString("fr-FR")} — Mes Sous`;
+  subCell.font = { italic: true, size: 8.5, color: { argb: XLS_COLORS.plumSoft } };
+  subCell.alignment = { horizontal: "left", indent: 1 };
+  row += 2;
+
+  // --- résumé du mois ---
+  xlsBanner(ws, row, "RÉSUMÉ DU MOIS", XLS_COLORS.lavender, XLS_COLORS.plum);
+  row++;
+
+  const summaryRows = [
+    { label: "Recettes", amount: incomeTotal, color: XLS_COLORS.mintDeep },
+    { label: "Dépenses", amount: expenseTotal, color: XLS_COLORS.coralDeep },
+  ];
+  summaryRows.forEach(r => {
+    ws.mergeCells(`B${row}:D${row}`);
+    ws.getCell(`B${row}`).value = r.label;
+    ws.getCell(`B${row}`).font = { bold: true, size: 10, color: { argb: XLS_COLORS.plum } };
+    const amt = ws.getCell(`F${row}`);
+    amt.value = r.amount;
+    amt.numFmt = '#,##0.00 "€"';
+    amt.font = { bold: true, size: 10, color: { argb: r.color } };
+    amt.alignment = { horizontal: "right" };
+    row++;
+  });
+
+  ws.mergeCells(`B${row}:D${row}`);
+  ws.getCell(`B${row}`).value = "Solde du mois";
+  ws.getCell(`B${row}`).font = { bold: true, size: 11, color: { argb: XLS_COLORS.plum } };
+  const soldeCell = ws.getCell(`F${row}`);
+  soldeCell.value = solde;
+  soldeCell.numFmt = '#,##0.00 "€"';
+  soldeCell.font = { bold: true, size: 11, color: { argb: solde >= 0 ? XLS_COLORS.mintDeep : XLS_COLORS.coralDeep } };
+  soldeCell.alignment = { horizontal: "right" };
+  ["B", "C", "D", "E", "F"].forEach(col => {
+    ws.getCell(`${col}${row}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLS_COLORS.cream2 } };
+  });
+  ws.getRow(row).height = 20;
+  row += 2;
+
+  // --- recettes par catégorie ---
+  row = xlsCategorySection(ws, row, "RECETTES PAR CATÉGORIE", XLS_COLORS.mint, incomeByCat, incomeTotal, "Aucune recette ce mois-ci");
+  row++;
+
+  // --- dépenses par catégorie ---
+  row = xlsCategorySection(ws, row, "DÉPENSES PAR CATÉGORIE", XLS_COLORS.coral, expenseByCat, expenseTotal, "Aucune dépense ce mois-ci");
+  row++;
+
+  // --- suivi des opérations ---
+  xlsBanner(ws, row, "SUIVI DES OPÉRATIONS", XLS_COLORS.peach, XLS_COLORS.plum);
+  row++;
+  xlsTableHeader(ws, row, [["B", "Date"], ["C", "Type"], ["D", "Catégorie"], ["E", "Enseigne"], ["F", "Montant"]]);
+  row++;
+
+  if (txns.length === 0) {
+    ws.mergeCells(`B${row}:F${row}`);
+    ws.getCell(`B${row}`).value = "Aucune opération ce mois-ci";
+    ws.getCell(`B${row}`).font = { italic: true, size: 9.5, color: { argb: XLS_COLORS.plumSoft } };
+    row++;
+  } else {
+    txns.forEach((t, i) => {
+      const cat = getCategory(t.type, t.categoryId);
+      const bg = i % 2 === 0 ? XLS_COLORS.white : XLS_COLORS.cream;
+      const dateCell = ws.getCell(`B${row}`);
+      dateCell.value = new Date(t.date + "T00:00:00");
+      dateCell.numFmt = "dd/mm/yyyy";
+      ws.getCell(`C${row}`).value = t.type === "income" ? "Recette" : "Dépense";
+      ws.getCell(`D${row}`).value = `${cat.emoji} ${cat.name}`;
+      ws.getCell(`E${row}`).value = t.label || "";
+      const amtCell = ws.getCell(`F${row}`);
+      amtCell.value = t.type === "expense" ? -t.amount : t.amount;
+      amtCell.numFmt = '#,##0.00 "€";[' + (t.type === "expense" ? "Red" : "Black") + ']-#,##0.00 "€"';
+      amtCell.alignment = { horizontal: "right" };
+      ["B", "C", "D", "E", "F"].forEach(col => {
+        const c = ws.getCell(`${col}${row}`);
+        c.font = c.font || { size: 9.5, color: { argb: XLS_COLORS.plum } };
+        if (!c.font.size) c.font = { size: 9.5, color: { argb: XLS_COLORS.plum } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+      });
+      row++;
+    });
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mes-sous-${currentMonth}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast("Fichier Excel téléchargé 📊");
+}
+
+function xlsCategorySection(ws, row, title, fillColor, rows, total, emptyMessage) {
+  xlsBanner(ws, row, title, fillColor, XLS_COLORS.plum);
+  row++;
+  xlsTableHeader(ws, row, [["B", "Catégorie"], ["E", "%"], ["F", "Montant"]]);
+  row++;
+
+  if (rows.length === 0) {
+    ws.mergeCells(`B${row}:F${row}`);
+    ws.getCell(`B${row}`).value = emptyMessage;
+    ws.getCell(`B${row}`).font = { italic: true, size: 9.5, color: { argb: XLS_COLORS.plumSoft } };
+    row++;
+    return row;
+  }
+
+  rows.forEach((r, i) => {
+    const pct = total > 0 ? r.amount / total : 0;
+    const bg = i % 2 === 0 ? XLS_COLORS.white : XLS_COLORS.cream;
+    ws.getCell(`B${row}`).value = `${r.cat.emoji} ${r.cat.name}`;
+    ws.getCell(`B${row}`).font = { size: 9.5, color: { argb: XLS_COLORS.plum } };
+    const pctCell = ws.getCell(`E${row}`);
+    pctCell.value = pct;
+    pctCell.numFmt = "0.0%";
+    pctCell.alignment = { horizontal: "right" };
+    pctCell.font = { size: 9.5, color: { argb: XLS_COLORS.plumSoft } };
+    const amtCell = ws.getCell(`F${row}`);
+    amtCell.value = r.amount;
+    amtCell.numFmt = '#,##0.00 "€"';
+    amtCell.alignment = { horizontal: "right" };
+    amtCell.font = { size: 9.5, color: { argb: XLS_COLORS.plum } };
+    ["B", "C", "D", "E", "F"].forEach(col => {
+      ws.getCell(`${col}${row}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+    });
+    row++;
+  });
+
+  // total
+  ws.mergeCells(`B${row}:D${row}`);
+  ws.getCell(`B${row}`).value = "Total";
+  ws.getCell(`B${row}`).font = { bold: true, size: 9.5, color: { argb: XLS_COLORS.plum } };
+  const totalCell = ws.getCell(`F${row}`);
+  totalCell.value = total;
+  totalCell.numFmt = '#,##0.00 "€"';
+  totalCell.font = { bold: true, size: 9.5, color: { argb: XLS_COLORS.plum } };
+  totalCell.alignment = { horizontal: "right" };
+  ["B", "C", "D", "E", "F"].forEach(col => {
+    ws.getCell(`${col}${row}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLS_COLORS.cream2 } };
+  });
+  row++;
+  return row;
+}
 
 async function resetAll() {
   const sure = await showConfirm(
