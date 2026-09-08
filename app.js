@@ -1206,6 +1206,44 @@ function ensureExcelJSLoaded() {
   });
 }
 
+/* Dessine le même donut que celui du Résumé, en canvas, pour l'insérer comme image dans l'Excel. */
+function drawDonutPNG(rows, total, size = 260) {
+  const canvas = document.createElement("canvas");
+  const scale = 2; // netteté sur écrans rétina
+  canvas.width = size * scale;
+  canvas.height = size * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  const cx = size / 2, cy = size / 2;
+  const rOuter = size / 2 - 6;
+  const rInner = rOuter * 0.56;
+
+  if (rows.length === 0 || total <= 0) return null;
+
+  let start = -Math.PI / 2;
+  rows.forEach(r => {
+    const frac = r.amount / total;
+    const end = start + frac * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, rOuter, start, end);
+    ctx.closePath();
+    ctx.fillStyle = r.cat.color;
+    ctx.fill();
+    start = end;
+  });
+
+  // trou central façon donut
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+
+  return canvas.toDataURL("image/png");
+}
+
 const XLS_COLORS = {
   cream: "FFFDF6EF",
   cream2: "FFFBEFE2",
@@ -1339,11 +1377,11 @@ async function exportMonthExcel() {
   row += 2;
 
   // --- recettes par catégorie ---
-  row = xlsCategorySection(ws, row, "RECETTES PAR CATÉGORIE", XLS_COLORS.mint, incomeByCat, incomeTotal, "Aucune recette ce mois-ci");
+  row = xlsCategorySection(wb, ws, row, "RECETTES PAR CATÉGORIE", XLS_COLORS.mint, incomeByCat, incomeTotal, "Aucune recette ce mois-ci");
   row++;
 
   // --- dépenses par catégorie ---
-  row = xlsCategorySection(ws, row, "DÉPENSES PAR CATÉGORIE", XLS_COLORS.coral, expenseByCat, expenseTotal, "Aucune dépense ce mois-ci");
+  row = xlsCategorySection(wb, ws, row, "DÉPENSES PAR CATÉGORIE", XLS_COLORS.coral, expenseByCat, expenseTotal, "Aucune dépense ce mois-ci");
   row++;
 
   // --- suivi des opérations ---
@@ -1394,7 +1432,7 @@ async function exportMonthExcel() {
   showToast("Fichier Excel téléchargé 📊");
 }
 
-function xlsCategorySection(ws, row, title, fillColor, rows, total, emptyMessage) {
+function xlsCategorySection(wb, ws, row, title, fillColor, rows, total, emptyMessage) {
   xlsBanner(ws, row, title, fillColor, XLS_COLORS.plum);
   row++;
   xlsTableHeader(ws, row, [["B", "Catégorie"], ["E", "%"], ["F", "Montant"]]);
@@ -1442,6 +1480,16 @@ function xlsCategorySection(ws, row, title, fillColor, rows, total, emptyMessage
     ws.getCell(`${col}${row}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: XLS_COLORS.cream2 } };
   });
   row++;
+
+  // --- graphique en donut, comme dans le Résumé de l'appli ---
+  const chartSize = 190;
+  const dataURL = drawDonutPNG(rows, total, chartSize);
+  if (dataURL) {
+    const imageId = wb.addImage({ base64: dataURL, extension: "png" });
+    ws.addImage(imageId, { tl: { col: 1.3, row: row - 1 + 0.15 }, ext: { width: chartSize, height: chartSize } });
+    row += Math.ceil(chartSize / 20) + 1;
+  }
+
   return row;
 }
 
